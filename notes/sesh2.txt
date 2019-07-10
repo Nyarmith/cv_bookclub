@@ -1,0 +1,60 @@
+# 4.1
+
+Features are a sparse thing, start with points and patches of itnerest e.g. corners
+
+## 4.1.1 Feature Detectors
+
+Patches can be described by two vectors: direction (and magnitude) of fastest change, direction (and magnitude) of slowest change
+
+## 4.1.2 Feature Descriptors
+
+
+# Discussion
+
+- For most cv tasks, you have to find correspondences in images
+- Edges are deceptive because they have a full axis to slide along (and mismatch)
+- feature-matching pipeline: find feature, find descriptors for features, 
+- autocorrelation = convolution of thing with itself
+    - approximation of how the feature will stand up in general, but can mainly be used on itself (or very similar regions)
+    - "what is the best you could possibly do"
+
+- The more of a point a feature is, the more robust it is to transformations
+- Auto-correlation matrix can be written as a I^2, IxIy, IyIx, Iy^2 matrix, and it was diescovered that this matrix could be used to determine what points would make good features
+- Of the patches, get the eigenvalues of the autocorrelation matrix, and the patches whose eignevalues are relatively similar, and high values, then they're probably a corner, and the rapid change means it's sharp when it changes
+- Harris corner detector basicall does this and takes corners above some eigenvalue threshold
+- Corners fail if they're too tiny and the scale changes (i.e. some significant feature is there but too far away)
+
+
+### multi-scale 2d blob detection
+- Laplace filters detect blobs, but they vary on scale
+- You can iterate throuh different laplace filter sizes and image scales, and you can find a combination that gives the best response, which we call the "characteristic scale"
+
+- Difference of gaussian ~= Laplace filter, so we do that instead
+
+- so in sift, we take a different gaussian for each scale of the image, ten we take the difference of the gaussiance to get the approximation of the laplacian filter
+
+
+- Akaze does someting a little bit different, it does a nonlinear surface blur where the high contrast areas are preserved (object boundaries are preserved). When object boundaries are preserved, it's more stable over different lighting conditions.
+
+Now that we've found features, we describe them in some compact form.
+- Man, how do we get different patches characterized in a rotationally and scale invariant way?
+- So, you need some scheme to orient image patches, otherwise it will break when trying to correlate them in some rotated state
+- Most modern descriptors are based on histograms (no one has improved this in a decade)
+    - The histogram is per-chunk of patch
+- Sift breaks each image-patch into 4x4 cells(each cell is 4x4 pixels), and then computes the gradient directions in each cell (change in cell)
+    - So you have 16 cells and 8 bin directions, i.e. 128 values of floats for each patch. This is the result of the descriptor!
+
+- Binary descriptors: randomy sample a set of pixel locations (gaussian weighted sampling towards the center)
+    - given these xy pairs over the image patch, and compare them then return 1 if greater and 0 if not. Make a number out of this. That's your descriptor.
+    - main advantage of this descriptor is that it's fast, and it works well with visual odometry which doesn't move much between pictures
+
+Now that you have the descriptors, the simplest way to do matching is to do an n^2 comparison of the descriptors found in images A and B
+
+- for histograms, you should do chi-squared comparisons instead of euclidean distance
+
+- you can have good matches, but it's not useful if it doesn't make sense spatially, so lowe's ratio (a spatial ratio) helps filter this out
+    - the ratio of the first and second best matches is lowe's ratio
+
+- Edges still have a use! Use a laplace filter to get the edges: canny edge detector
+
+- Above all you want to be fast, because it simplifies the challenges in your models.
